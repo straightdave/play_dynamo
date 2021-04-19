@@ -1,11 +1,11 @@
 defmodule PlayDynamo.Server do
   use GenServer
 
-  # @channel_name "fox_local_phoenix"
-  # @channel_url "https://c4af3793bf76b33c.mediapackage.us-west-2.amazonaws.com/out/v1/e421d95325e6477aa0f16b1bdac59de6/index.m3u8"
+  @channel_name "fox_local_phoenix"
+  @channel_url "https://c4af3793bf76b33c.mediapackage.us-west-2.amazonaws.com/out/v1/e421d95325e6477aa0f16b1bdac59de6/index.m3u8"
 
-  @channel_name "apple_example"
-  @channel_url "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8"
+  # @channel_name "apple_example"
+  # @channel_url "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8"
 
   alias PlayDynamo.{Channel, Segment, Variant}
   require Logger
@@ -32,11 +32,13 @@ defmodule PlayDynamo.Server do
     {:reply, res, state}
   end
 
-  # @impl GenServer
-  # def handle_call({:get_playlist, variant_name}, _from, state) do
-  #   res = Channel.get(@channel_name)
-  #   {:reply, res, state}
-  # end
+  @impl GenServer
+  def handle_call({:get_playlist, variant_name}, _from, state) do
+    var_name = String.trim_leading(variant_name, "/")
+    playlist_tags = Variant.get(@channel_name, var_name)
+    segments = Segment.get_all(@channel_name, var_name)
+    {:reply, "#{playlist_tags}\n#{segments}\n", state}
+  end
 
   @impl GenServer
   def handle_info(:tick, state) do
@@ -57,7 +59,8 @@ defmodule PlayDynamo.Server do
                   [
                     channel_name: @channel_name,
                     channel_url: @channel_url,
-                    variant_name: &1.variant_name
+                    variant_name: &1.variant_name,
+                    variant_url: &1.variant_original_full_url
                   ],
                   var_body
                 )
@@ -66,7 +69,8 @@ defmodule PlayDynamo.Server do
                   [
                     channel_name: @channel_name,
                     channel_url: @channel_url,
-                    variant_name: &1.variant_name
+                    variant_name: &1.variant_name,
+                    variant_url: &1.variant_original_full_url
                   ],
                   var_body
                 )

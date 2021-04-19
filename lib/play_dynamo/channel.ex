@@ -63,6 +63,10 @@ defmodule PlayDynamo.Channel do
   end
 
   def get(channel_name) do
+    # TOFIX: caching this master list content in local memory.
+    # Since at least using local dev DynamoDB the query may cause timeout issue.
+    # (GenServer call default timeout=5_000ms)
+
     body =
       Dynamo.query(@table_name,
         expression_attribute_values: [desired_channel: channel_name],

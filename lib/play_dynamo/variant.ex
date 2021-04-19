@@ -10,7 +10,7 @@ defmodule PlayDynamo.Variant do
     "#EXTM3U",
     "#EXT-X-VERSION",
     "#EXT-X-TARGETDURATION",
-    "#EXT-X-MEDIA-SEQUENCE",
+    # "#EXT-X-MEDIA-SEQUENCE",
     "#EXT-X-DISCONTINUITY-SEQUENCE",
     "#EXT-X-ENDLIST",
     "#EXT-X-PLAYLIST-TYPE",
@@ -69,18 +69,31 @@ defmodule PlayDynamo.Variant do
     Dynamo.put_item(@table_name, obj, opts) |> ExAws.request!()
   end
 
-  # def get(channel_name) do
-  #   body =
-  #     Dynamo.query(@table_name,
-  #       expression_attribute_values: [desired_channel: channel_name],
-  #       key_condition_expression: "channel_name = :desired_channel"
-  #     )
-  #     |> ExAws.request!()
-  #     |> Map.get("Items")
-  #     |> Enum.map(&Dynamo.decode_item(&1, as: __MODULE__))
-  #     |> Enum.map(&((&1.variant_tags ++ [&1.variant_full_url]) |> Enum.join("\n")))
-  #     |> Enum.join("\n")
+  def get(channel_name, variant_name) do
+    # TOFIX: caching this master list content in local memory.
+    # Since at least using local dev DynamoDB the query may cause timeout issue.
+    # (GenServer call default timeout=5_000ms)
 
-  #   "#EXTM3U\n#{body}\n"
-  # end
+    res =
+      Dynamo.query(@table_name,
+        expression_attribute_values: [
+          desired_channel: channel_name,
+          desired_variant: variant_name
+        ],
+        key_condition_expression:
+          "channel_name = :desired_channel AND variant_name = :desired_variant"
+      )
+      |> ExAws.request!()
+
+    tag_lines =
+      res
+      |> Map.get("Items")
+      |> Enum.map(&Dynamo.decode_item(&1, as: __MODULE__))
+      |> Enum.map(fn var ->
+        var.tags |> Enum.join("\n")
+      end)
+      |> Enum.join()
+
+    "#{tag_lines}\n"
+  end
 end

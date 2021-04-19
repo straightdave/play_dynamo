@@ -52,7 +52,7 @@ defmodule PlayDynamo.Segment do
     now = DateTime.utc_now() |> DateTime.to_unix()
     channel_name = Keyword.get(args, :channel_name)
     variant_name = Keyword.get(args, :variant_name)
-    base_url = Keyword.get(args, :channel_url) |> Path.dirname()
+    base_url = Keyword.get(args, :variant_url) |> Path.dirname()
 
     segments =
       body
@@ -103,6 +103,23 @@ defmodule PlayDynamo.Segment do
     Enum.each(segments, fn segment ->
       Dynamo.put_item(@table_name, segment, opts) |> ExAws.request!()
     end)
+  end
+
+  def get_all(channel_name, variant_name) do
+    # TOFIX: for get_all (VOD or something) we can also cache all data in memory
+
+    Dynamo.query(@table_name,
+      expression_attribute_values: [desired_channel_variant: "#{channel_name}|#{variant_name}"],
+      key_condition_expression: "channel_variant_name = :desired_channel_variant"
+    )
+    |> ExAws.request!()
+    |> Map.get("Items")
+    |> Enum.map(&Dynamo.decode_item(&1, as: __MODULE__))
+    |> Enum.map(fn seg ->
+      tag_lines = seg.segment_tags |> Enum.join("\n")
+      "#{tag_lines}\n#{seg.segment_original_full_url}\n"
+    end)
+    |> Enum.join()
   end
 
   defp is_uri_absolute?(uri) do
